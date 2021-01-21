@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="preconnect" href="https://fonts.gstatic.com">
+        <title>ADHD-resistant Sticky Notes</title>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+<style>
+body {
+    margin: 0;
+}
+#main {
+    height: 100vh;
+    width: 100vw;
+}
+.todo {
+    transition: background-color 1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10vmin;
+    text-align: center;
+}
+</style>
+<textarea class="todo" id="main"></textarea>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/randomcolor/0.6.1/randomColor.min.js" integrity="sha512-vPeZ7JCboHcfpqSx5ZD+/jpEhS4JpXxfz9orSvAPPj0EKUVShU2tgy7XkU+oujBJKnWmu4hU7r9MMQNWPfXsYw==" crossorigin="anonymous"></script>
+    <script>
+        function getRGB(color) {
+          var canvas = document.createElement("canvas")
+
+          var context = canvas.getContext("2d");
+          context.beginPath();
+          context.rect(0,0,100,100);
+          context.fillStyle = color;
+          context.fill();
+
+          var imgData = context.getImageData(0, 0, 10, 10);
+          var array = imgData.data.slice(50*4, 50*4+4);
+          array[3] = array[3] / 255.0;
+            console.log(array)
+          return [array[0], array[1], array[2]];
+        }
+        function shuffle(array) {
+          var currentIndex = array.length, temporaryValue, randomIndex;
+
+          // While there remain elements to shuffle...
+          while (0 !== currentIndex) {
+
+            // Pick a remaining element...
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex -= 1;
+
+            // And swap it with the current element.
+            temporaryValue = array[currentIndex];
+            array[currentIndex] = array[randomIndex];
+            array[randomIndex] = temporaryValue;
+          }
+
+          return array;
+        }
+        class Deck {
+            constructor(possibilities) {
+                this.possibilities = Array.from(possibilities);
+                shuffle(this.possibilities);
+                this.position = 0;
+            }
+            getRandom() {
+                if (this.position < this.possibilities.length) {
+                    return this.possibilities[this.position++];
+                } else {
+                    shuffle(this.possibilities);
+                    this.position = 0;
+                }
+            }
+        }
+        let loadedStylesheets = new Set();
+        function loadStylesheet(href) {
+            if (loadedStylesheets.has(href)) return;
+            let stylesheet = document.createElement("link");
+            stylesheet.setAttribute("rel", "stylesheet");
+            stylesheet.setAttribute("href", href);
+            document.head.appendChild(stylesheet);
+            loadedStylesheets.add(href);
+        }
+        const availableFonts = [
+            "Arial",
+            "Yusei Magic",
+            "Potta One",
+            "Fraunces",
+            "Montserrat",
+            "Imbue",
+            "Hachi Maru Pop",
+            "Oswald",
+            "Bodoni Moda",
+            "Nunito", // soft cornered sans-serif
+            "Playfair Display",
+            "Merriweather",
+            "Coda Caption",
+            "Inconsolata",
+            "Lobster",
+            "IBM Plex Sans",
+            "Fjalla One",
+            "Dancing Script",
+            "Abel",
+            "Bebas Neue", // bold smallcaps
+            "Gorditas",
+            "Source Serif Pro",
+            "Press Start 2P",
+        ]
+        class Todo {
+            constructor(element, saveDataCB) {
+                this.element = element;
+                this.saveData = saveDataCB;
+                let saveThings = () => this.saveData(this.getState());
+                this.element.addEventListener("input", saveThings);
+                this.element.addEventListener("keypress", saveThings);
+                this.fontDeck = new Deck(availableFonts);
+            }
+            setState(state) {
+                this.element.style.backgroundColor = state.backgroundColor;
+                this.element.style.color = state.textColor;
+                this.element.style.fontFamily = "'" + state.fontFamily + "'";
+                loadStylesheet("https://fonts.googleapis.com/css2?family=" + state.fontFamily.replace(' ', '+') + "&display=swap");
+                if (state.text) {
+                    this.element.value = state.text;
+                }
+                this.state = state;
+            }
+            getState() {
+                this.state.text = this.element.value;
+                return this.state;
+            }
+            getDelay() {
+                if (this.state.delayStart == null) {
+                    return 0;
+                } else return Math.max(0, Date.now() + 10 * 60 * 1e3 - this.state.delayStart);
+            }
+            // FIXME: Refactor these into mixins
+            getRandomColor() {
+                // FIXME: Improve with better algorithm
+                return randomColor();
+            }
+            getRandomFont() {
+                return this.fontDeck.getRandom();
+            }
+            transition() {
+                let state = {};
+                state.backgroundColor = this.getRandomColor();
+                function pickTextColorBasedOnBgColor([r, g, b], lightColor, darkColor) {
+                  var uicolors = [r / 255, g / 255, b / 255];
+                  var c = uicolors.map((col) => {
+                    if (col <= 0.03928) {
+                      return col / 12.92;
+                    }
+                    return Math.pow((col + 0.055) / 1.055, 2.4);
+                  });
+                  var L = (0.2126 * c[0]) + (0.7152 * c[1]) + (0.0722 * c[2]);
+                  return (L > 0.179) ? darkColor : lightColor;
+                }
+                // FIXME: Improve this from white and black
+                state.textColor = pickTextColorBasedOnBgColor(getRGB(state.backgroundColor), "white", "black");
+                state.fontFamily = this.getRandomFont();
+                this.setState(state);
+                this.state.delayStart = Date.now();
+                this.saveData(this.getState());
+            }
+        }
+        var item = new Todo(document.querySelector("#main"), json => {
+            localStorage.setItem("one_todo", JSON.stringify(json));
+        });
+        if (localStorage.getItem("one_todo") == null) {
+            item.transition();
+        } else {
+            item.setState(JSON.parse(localStorage.getItem("one_todo")));
+        }
+        setTimeout(() => {
+            this.transition();
+            setInterval(function repeatTransitionEvery() {
+                // Could repeat at times of day
+                item.transition();
+            }, 10 * 60 * 1e3);
+        }, item.getDelay());
+    </script>
+    </body>
+</html>
