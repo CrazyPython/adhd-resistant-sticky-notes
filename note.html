@@ -181,7 +181,7 @@ body {
             item.setState(JSON.parse(localStorage.getItem("one_todo")));
         }
         setTimeout(() => {
-            this.transition();
+            item.transition();
             setInterval(function repeatTransitionEvery() {
                 // Could repeat at times of day
                 item.transition();
