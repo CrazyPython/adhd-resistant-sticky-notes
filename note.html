@@ -140,7 +140,7 @@ body {
             getDelay() {
                 if (this.state.delayStart == null) {
                     return 0;
-                } else return Math.max(0, Date.now() + 10 * 60 * 1e3 - this.state.delayStart);
+                } else return Math.max(0, this.state.delayStart - Date.now() + 1 * 60 * 1e3);
             }
             // FIXME: Refactor these into mixins
             getRandomColor() {
